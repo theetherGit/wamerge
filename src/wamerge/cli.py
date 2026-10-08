@@ -19,6 +19,7 @@ STEPS = {
 USAGE = """wamerge {version}
 
 Merge an Android WhatsApp text history into an iPhone's WhatsApp database.
+Educational project, not affiliated with Meta or WhatsApp; no warranty.
 For your own data only. Read the guide before running 'install --apply':
 restoring the modified backup replaces everything on the iPhone.
 

@@ -5,6 +5,10 @@ into the WhatsApp you already use on an iPhone, keeping the iPhone's own chats.
 The recovery and merge are proven on real data. The final restore to the phone
 had not been run on iOS 27 when this was written.
 
+> **Educational project. Not affiliated with, endorsed by or supported by Meta
+> or WhatsApp. No warranty.** Read the [disclaimer](README.md#disclaimer)
+> before following this guide.
+
 ## What you get
 
 Text messages, chats, groups and starred flags come across. Media and a few
