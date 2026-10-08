@@ -11,9 +11,13 @@ already use on an iPhone, keeping the iPhone's own chats.
 - For your own data only. You need your own phone number to unlock the backup.
 - It relies on WhatsApp's undocumented file formats, which WhatsApp's terms do
   not permit you to reverse-engineer and which can change without notice.
-- The last step restores your whole iPhone from a modified backup. That step
-  had not been proven on iOS 27 when this was published. Keep the untouched
-  backup copy the tool makes until you are satisfied.
+- The last step restores your whole iPhone from a modified backup. It has
+  worked in one real run on iOS 27.0.1, but a WhatsApp or iOS update can
+  change that. Keep the untouched backup copy the tool makes until you are
+  satisfied.
+- Messages that arrived after the old phone stopped working and before
+  WhatsApp was set up on the iPhone are not recovered if only a linked device
+  (WhatsApp Web or Desktop) received them. They are in neither backup.
 - Text only. Photos, videos, voice notes, reply quotes and reactions are not
   merged. Stickers are rebuilt separately as sticker packs.
 
@@ -76,9 +80,12 @@ WhatsApp data is needed or included.
 
 ## Status
 
-Proven on one real run (iOS 27.0.1): recovery, extract, merge, the install
-dry run, and sticker packs. Not yet proven: `install --apply` followed by a
-restore. If you run it, please report what WhatsApp did.
+Proven end to end in one real run on iOS 27.0.1: recovery, extract, merge,
+`install --apply`, the restore, and sticker packs. WhatsApp opened the restored
+database with the old history in place. The only messages missing were the
+ones from the gap described above. Not yet checked: whether search finds the
+added messages, and whether new chats pick up contact names. If you run it on
+another iOS version, please report what happened.
 
 ## Disclaimer
 

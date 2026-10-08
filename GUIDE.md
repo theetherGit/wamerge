@@ -2,8 +2,8 @@
 
 This guide merges the text history from a dead Android phone's WhatsApp backup
 into the WhatsApp you already use on an iPhone, keeping the iPhone's own chats.
-The recovery and merge are proven on real data. The final restore to the phone
-had not been run on iOS 27 when this was written.
+The whole method, including the final restore, has worked in one real run on
+iOS 27.0.1.
 
 > **Educational project. Not affiliated with, endorsed by or supported by Meta
 > or WhatsApp. No warranty.** Read the [disclaimer](README.md#disclaimer)
@@ -23,11 +23,22 @@ message features do not.
 | Photos, videos, voice notes, documents and their captions | Not merged |
 | Reply quotes | Reply text is kept, the quoted bubble is not |
 | Reactions, polls, calls, system notices | Not merged |
+| Messages from the gap between the old phone dying and the iPhone taking over, if only WhatsApp Web or Desktop received them | Not recoverable (see below) |
 
-What is still unproven: whether WhatsApp on iOS 27 accepts the modified
-database after a restore, whether search finds the added messages, and whether
-new chats pick up contact names. The method follows older tools that did this
-on earlier iOS versions.
+In the real run, WhatsApp on iOS 27.0.1 accepted the modified database after
+the restore and showed the old history. Not yet checked: whether search finds
+the added messages, and whether new chats pick up contact names. Other iOS or
+WhatsApp versions may behave differently.
+
+**The gap you cannot recover.** The Google Drive backup ends when the old
+phone stopped working, and the iPhone's history starts when you set WhatsApp up
+on it. Messages in between that reached only a linked device, such as
+WhatsApp Web or Desktop, exist only in that browser or app. They are in
+neither backup, and signing that device out deletes them. This gap can easily
+be weeks long. To keep the gap small, move the number to the iPhone as soon
+as you can. Before then, copy or screenshot anything important from WhatsApp
+Web, and ask the other person to use Export chat if you need a record of a
+conversation from that period.
 
 This works only on your own data. It needs your own number to unlock the
 backup, and it relies on WhatsApp's undocumented file formats, which WhatsApp's
@@ -232,9 +243,9 @@ Android keeps contact names in a file that cannot be pulled without root.
 
 ## Install and restore (step 5)
 
-This step is untested on iOS 27: the tool passes its own checks, but no restore
-had been run when this was written. Treat your first run as a trial and keep
-the untouched backup copy until you are satisfied.
+This step worked in one real run on iOS 27.0.1. A different iOS or WhatsApp
+version may behave differently, so keep the untouched backup copy until you
+are satisfied.
 
 Run the steps back to back. A backup taken hours earlier would wipe everything
 the phone received since.
@@ -389,7 +400,7 @@ the result if ignored.
   since 2001.
 
 Added messages lack the per-message metadata record that the iPhone writes for
-its own messages. Whether the app needs it is what the first restore tests.
+its own messages. In the real run on iOS 27.0.1 the app did not need it.
 
 ## Sources
 
