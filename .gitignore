@@ -1,0 +1,29 @@
+# Private data: never commit any of these
+android-raw/
+android-decrypted/
+ios-copy/
+output/
+backup-untouched/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.crypt*
+*.wastickers
+*.webp
+*.zip
+*.plist
+key*.txt
+merge-report.txt
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.DS_Store
+
+# Local tool state
+.remember/
