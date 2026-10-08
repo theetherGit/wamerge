@@ -84,6 +84,11 @@ if not chosen:
     sys.exit("Nothing selected. Try --all.")
 
 if os.path.exists(OUT):
+    # Only ever delete a folder this tool made: never a mistyped path such as ~/Desktop.
+    foreign = set(os.listdir(OUT)) - {"wastickers", "static", "animated", "stickers.zip", ".DS_Store"}
+    if foreign:
+        sys.exit(f"STOPPED: {OUT} holds files this tool did not make ({', '.join(sorted(foreign)[:3])}). "
+                 "Choose an empty or new output folder.")
     shutil.rmtree(OUT)
 counts = {"static": 0, "animated": 0, "unreadable": 0}
 packs = {"static": {}, "animated": {}}  # kind -> pack number -> [source paths]

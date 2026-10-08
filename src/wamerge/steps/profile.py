@@ -20,7 +20,7 @@ import sys
 from collections import Counter
 
 AND = sys.argv[1] if len(sys.argv) > 1 else "android-decrypted/msgstore.db"
-IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/ChatStorage.sqlite"
+IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/active/ChatStorage.sqlite"
 OUT = sys.argv[3] if len(sys.argv) > 3 else "output/profile.txt"
 
 APPLE_EPOCH = 978307200

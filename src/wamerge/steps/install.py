@@ -51,6 +51,9 @@ if not backups:
 B = backups[0]
 name = os.path.basename(B)
 print(f"backups on this Mac: {len(backups)}; newest is the target")
+for f in ("Manifest.plist", "Status.plist", "Manifest.db"):
+    if not os.path.exists(os.path.join(B, f)):
+        stop(f"the newest folder in {ROOT} is not a finished Finder backup (no {f})")
 
 with open(os.path.join(B, "Manifest.plist"), "rb") as f:
     mp = plistlib.load(f)
@@ -65,6 +68,7 @@ print(f"backup made: {mp.get('Date')} (UTC)   iOS {mp.get('Lockdown', {}).get('P
 man_path = os.path.join(B, "Manifest.db")
 man = sqlite3.connect(f"file:{man_path}?mode=ro", uri=True)
 row = man.execute("SELECT fileID, file FROM Files WHERE domain=? AND relativePath=?", (DOMAIN, rel)).fetchone()
+wal = man.execute("SELECT fileID FROM Files WHERE domain=? AND relativePath=?", (DOMAIN, rel + "-wal")).fetchone()
 man.close()
 if not row:
     stop("the active account's database is not listed in this backup")
@@ -72,6 +76,11 @@ file_id, blob = row
 target = os.path.join(B, file_id[:2], file_id)
 if not os.path.exists(target):
     stop("the active account's database file is missing from this backup")
+# After a restore SQLite would replay a leftover write-ahead log over the merged file.
+wal_path = os.path.join(B, wal[0][:2], wal[0]) if wal else None
+if wal_path and os.path.exists(wal_path) and os.path.getsize(wal_path) > 0:
+    stop("the backup also holds a non-empty -wal file for this database, which would be replayed over "
+         "the merged file after a restore. Make a fresh backup, then run extract and merge again.")
 
 record = plistlib.loads(blob)
 meta = next((o for o in record["$objects"] if isinstance(o, dict) and "Size" in o), None)
@@ -139,29 +148,56 @@ else:
         stop("the untouched copy is incomplete")
     print(f"untouched copy saved: {safe}")
 
+tmp = target + ".tmp"
+
+
+def undo(reason):
+    """Put the original file and index entry back from the untouched copy."""
+    try:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        shutil.copyfile(os.path.join(safe, file_id[:2], file_id), target)
+        m = sqlite3.connect(man_path)
+        m.execute("UPDATE Files SET file=? WHERE fileID=?", (blob, file_id))
+        m.commit()
+        m.close()
+    except Exception as e:
+        sys.exit(f"FAILED: {reason}\nPutting the backup back also failed ({e}). Before restoring the iPhone, "
+                 f"delete {B} and copy {safe} back in its place.")
+    sys.exit(f"FAILED, the backup was put back as it was: {reason}")
+
+
 # 2. Replace the file and update its size in the index.
+# 3. Read it back. Any failure or interruption puts the original back.
 meta["Size"] = new_size
 meta["LastModified"] = int(time.time())
 new_blob = plistlib.dumps(record, fmt=plistlib.FMT_BINARY)
-tmp = target + ".tmp"
-shutil.copyfile(MERGED, tmp)
-os.replace(tmp, target)
-man = sqlite3.connect(man_path)
-man.execute("UPDATE Files SET file=? WHERE fileID=?", (new_blob, file_id))
-man.commit()
-ok = man.execute("PRAGMA integrity_check").fetchone()[0]
-man.close()
+man = None
+try:
+    shutil.copyfile(MERGED, tmp)
+    os.replace(tmp, target)
+    man = sqlite3.connect(man_path)
+    man.execute("UPDATE Files SET file=? WHERE fileID=?", (new_blob, file_id))
+    man.commit()
+    ok = man.execute("PRAGMA integrity_check").fetchone()[0]
+    man.close()
 
-# 3. Read it back.
-check = sqlite3.connect(f"file:{target}?mode=ro&immutable=1", uri=True)
-n = check.execute("SELECT count(*) FROM ZWAMESSAGE").fetchone()[0]
-check.close()
-man = sqlite3.connect(f"file:{man_path}?mode=ro", uri=True)
-size_now = next(o for o in plistlib.loads(man.execute(
-    "SELECT file FROM Files WHERE fileID=?", (file_id,)).fetchone()[0])["$objects"]
-    if isinstance(o, dict) and "Size" in o)["Size"]
-man.close()
+    check = sqlite3.connect(f"file:{target}?mode=ro&immutable=1", uri=True)
+    n = check.execute("SELECT count(*) FROM ZWAMESSAGE").fetchone()[0]
+    check.close()
+    man = sqlite3.connect(f"file:{man_path}?mode=ro", uri=True)
+    size_now = next(o for o in plistlib.loads(man.execute(
+        "SELECT file FROM Files WHERE fileID=?", (file_id,)).fetchone()[0])["$objects"]
+        if isinstance(o, dict) and "Size" in o)["Size"]
+    man.close()
+except BaseException as e:      # includes Ctrl-C between the two writes
+    if man is not None:
+        man.close()
+    undo(f"{type(e).__name__}: {e}")
+file_size = os.path.getsize(target)
+if ok != "ok" or size_now != file_size or n != m_total:
+    undo(f"read-back check failed (index integrity {ok}, index size {size_now}, file size {file_size}, "
+         f"messages {n}, expected {m_total})")
 print(f"\nINSTALLED. The backup's WhatsApp database now has {n} messages.")
-print(f"index size {size_now} == file size {os.path.getsize(target)}: {size_now == os.path.getsize(target)}; "
-      f"index integrity: {ok}")
+print(f"index size {size_now} == file size {file_size}: True; index integrity: ok")
 print(f"To undo: delete the backup folder and copy {safe} back in its place.")

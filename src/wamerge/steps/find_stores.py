@@ -20,7 +20,7 @@ import sys
 
 ROOT = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser(
     "~/Library/Application Support/MobileSync/Backup")
-IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/ChatStorage.sqlite"
+IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/active/ChatStorage.sqlite"
 MERGED = sys.argv[3] if len(sys.argv) > 3 else "output/ChatStorage.merged.sqlite"
 EPOCH = 978307200
 

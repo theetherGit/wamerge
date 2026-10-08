@@ -23,6 +23,8 @@ backups = sorted((d for d in glob.glob(os.path.join(ROOT, "*")) if os.path.isdir
 if not backups:
     sys.exit("No backup found (does Terminal have Full Disk Access?)")
 B = backups[0]
+if not os.path.exists(os.path.join(B, "Manifest.db")):
+    sys.exit(f"STOPPED: the newest folder in {ROOT} is not a finished Finder backup (no Manifest.db)")
 man = sqlite3.connect(f"file:{os.path.join(B, 'Manifest.db')}?mode=ro&immutable=1", uri=True)
 
 
@@ -70,7 +72,10 @@ if not stores:
 # phone: its messages never appear "the other way round" in the Android history,
 # and it is the one you actively send from.
 stores.sort(key=lambda s: (s["opposite"] == 0, s["sent30"]), reverse=True)
-if len(stores) > 1 and android_ids is not None:
+if len(stores) > 1 and android_ids is None:
+    sys.exit(f"STOPPED: the backup holds {len(stores)} WhatsApp accounts and {AND} was not found, "
+             "so there is no way to tell which one matches the Android history. Nothing copied.")
+if len(stores) > 1:
     a, b = stores[0], stores[1]
     if a["opposite"] > 0 or a["sent30"] <= b["sent30"]:
         sys.exit("STOPPED: cannot tell which account matches the Android history. Nothing copied.")
@@ -102,6 +107,11 @@ for name in ("ChatStorage.sqlite", "LID.sqlite", "ContactsV2.sqlite"):
         print(f"   copied {name} ({os.path.getsize(target)} bytes)")
     else:
         print(f"   {name}: not in the backup for this account")
+wal = man.execute("SELECT fileID FROM Files WHERE domain=? AND relativePath=?",
+                  (DOMAIN, prefix + "ChatStorage.sqlite-wal")).fetchone()
+if wal and os.path.exists(disk(wal[0])) and os.path.getsize(disk(wal[0])) > 0:
+    print("\n   WARNING: the backup also holds a non-empty ChatStorage.sqlite-wal. Its newest messages are not\n"
+          "   in the copy, and 'wamerge install' will refuse this backup. Make a fresh backup and try again.")
 with open(os.path.join(DEST, "SOURCE.txt"), "w") as f:
     f.write(prefix + "ChatStorage.sqlite\n")
 print(f"\nSaved to {DEST}/")

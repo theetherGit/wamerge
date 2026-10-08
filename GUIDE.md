@@ -252,7 +252,9 @@ wamerge install --apply
 
 5. **Check the output.** Continue only if it ends with `INSTALLED` and the
    line after shows `True` and `ok`. On `STOPPED` or `REJECTED`, nothing was
-   changed; read the reason.
+   changed; read the reason. On `FAILED`, the tool has already put the
+   original file back; if it says that also failed, roll back by hand as
+   described below before restoring.
 6. **Restore.** In Finder click **Restore Backup…**, not "Restore iPhone…",
    which wipes the phone to factory state. Do not click Back Up Now again,
    because that overwrites the merged file.

@@ -4,7 +4,7 @@ Stage 1 merge: add the old Android text history to a COPY of the iPhone
 WhatsApp database. Runs entirely on the Mac; the phone is not involved.
 
 Reads   android-decrypted/msgstore.db      (opened read-only)
-        ios-copy/ChatStorage.sqlite         (opened read-only, copied)
+        ios-copy/active/ChatStorage.sqlite  (opened read-only, copied)
 Writes  output/ChatStorage.merged.sqlite    (the merged copy)
         output/merge-report.txt             (counts only, no message content)
 
@@ -24,9 +24,10 @@ import sys
 from collections import defaultdict
 
 AND = sys.argv[1] if len(sys.argv) > 1 else "android-decrypted/msgstore.db"
-IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/ChatStorage.sqlite"
+IOS = sys.argv[2] if len(sys.argv) > 2 else "ios-copy/active/ChatStorage.sqlite"
 OUT = sys.argv[3] if len(sys.argv) > 3 else "output/ChatStorage.merged.sqlite"
 REPORT = os.path.join(os.path.dirname(OUT) or ".", "merge-report.txt")
+WORK = OUT + ".partial"          # renamed to OUT only after every check passes
 
 APPLE_EPOCH = 978307200
 FAR_FUTURE = 4102444800 - APPLE_EPOCH      # year 2100
@@ -42,7 +43,14 @@ def out(s=""):
 
 
 def die(msg):
+    remove(WORK)
     sys.exit("STOPPED: " + msg)
+
+
+def remove(base):
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        if os.path.exists(base + suffix):
+            os.remove(base + suffix)
 
 
 for p in (AND, IOS):
@@ -55,18 +63,20 @@ if os.path.abspath(OUT) == os.path.abspath(IOS):
 # 0. Work on a copy. The source files are never opened for writing.
 # --------------------------------------------------------------------------
 os.makedirs(os.path.dirname(OUT) or ".", exist_ok=True)
-for suffix in ("", "-wal", "-shm", "-journal"):
-    if os.path.exists(OUT + suffix):
-        os.remove(OUT + suffix)
+# A failed or interrupted run must not leave an old output or report behind.
+remove(OUT)
+remove(WORK)
+if os.path.exists(REPORT):
+    os.remove(REPORT)
 src = sqlite3.connect(f"file:{os.path.abspath(IOS)}?mode=ro", uri=True)
 if src.execute("PRAGMA quick_check").fetchone()[0] != "ok":
     die("the iPhone database copy fails its integrity check")
 ORIG_JOURNAL = src.execute("PRAGMA journal_mode").fetchone()[0]
 src.close()
-shutil.copyfile(IOS, OUT)
+shutil.copyfile(IOS, WORK)
 
 adb = sqlite3.connect(f"file:{os.path.abspath(AND)}?mode=ro", uri=True)
-db = sqlite3.connect(OUT)
+db = sqlite3.connect(WORK)
 db.execute("PRAGMA foreign_keys=OFF")
 
 # Confirm the iPhone database is laid out the way this script expects.
@@ -513,9 +523,7 @@ if tuple(orig_now) != tuple(before_fingerprint):
 if problems:
     db.execute("ROLLBACK")
     db.close()
-    for suffix in ("", "-wal", "-shm", "-journal"):
-        if os.path.exists(OUT + suffix):
-            os.remove(OUT + suffix)
+    remove(WORK)
     out("MERGE REJECTED. Nothing was kept. Problems found:")
     for pr in problems:
         out("  - " + pr)
@@ -527,9 +535,17 @@ if ORIG_JOURNAL == "wal":
     db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 db.close()
 adb.close()
+unwritten = os.path.exists(WORK + "-wal") and os.path.getsize(WORK + "-wal") > 0
+if integrity != "ok" or unwritten:
+    remove(WORK)
+    out("MERGE REJECTED. Nothing was kept. Problems found:")
+    out(f"  - integrity check: {integrity}" if integrity != "ok" else
+        "  - changes were left in a -wal file instead of the database itself")
+    sys.exit(1)
 for suffix in ("-wal", "-shm"):
-    if os.path.exists(OUT + suffix) and os.path.getsize(OUT + suffix) == 0:
-        os.remove(OUT + suffix)
+    if os.path.exists(WORK + suffix):
+        os.remove(WORK + suffix)
+os.replace(WORK, OUT)
 
 # --------------------------------------------------------------------------
 # 6. Report (counts only).
@@ -578,8 +594,6 @@ for (st, fm), tpl in sorted(MSG_TPL.items()):
         "  ".join(f"{k[1:].lower()}={v}" for k, v in tpl.items()))
 out()
 out(f"Merged database: {OUT}")
-if integrity != "ok":
-    out("WARNING: integrity check did not return ok. Do not use this file.")
 with open(REPORT, "w") as f:
     f.write("\n".join(lines) + "\n")
 print(f"Report saved to {REPORT}")
